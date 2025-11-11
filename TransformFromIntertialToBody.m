@@ -8,7 +8,7 @@ function wind_body = TransformFromIntertialToBody(wind_inertial, angles)
 
   Rb_e = [c2*c3, c2*s3, -s2;
           s1*s2*c3 - c1*s3; s1*s2*s3 + c1*c3, s1*c2;
-          c1*s2*c3 - s1*s3, c1*s2*s3 - s1*c3, c1*c2]; 
+          c1*s2*c3 + s1*s3, c1*s2*s3 - s1*c3, c1*c2]; 
 
   wind_body = Rb_e * wind_inertial; 
 
