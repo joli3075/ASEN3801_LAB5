@@ -1,75 +1,53 @@
-function x_dot= AircraftEOM(time, aircraft_state, aircraft_surfaces, wind_inertial, aircraft_parameters)
-    
-    height = abs(aircraft_state(3)); %z 
+function xdot = AircraftEOM(time, aircraft_state, aircraft_surfaces, wind_inertial, aircraft_parameters)
+pos = aircraft_state(1:3);
+angle = aircraft_state(4:6);
+vel = aircraft_state(7:9);
+aVel = aircraft_state(10:12);
 
-    %angles
-    phi = aircraft_state(4);
-    theta = aircraft_state(5); 
-    psi = aircraft_state(6); 
-    
-    %intertial velcoity
-    u = aircraft_state(7); 
-    v = aircraft_state(8); 
-    w = aircraft_state(9); 
-    
-    %angular velocity
-    p = aircraft_state(10);
-    q = aircraft_state(11);
-    r = aircraft_state(12); 
+%% Rotation Matrices and Angle Defs
+% 3-2-1 rotation matrix
+c_3 = cos(angle(3));  s_3 = sin(angle(3));
+c_2 = cos(angle(2));  s_2 = sin(angle(2));
+c_1 = cos(angle(1));  s_1 = sin(angle(1));
+tan_2 = tan(angle(2));  sec_2 = sec(angle(2));
+euler321 = [
+   c_2*c_3,      s_2*s_1*c_3 - c_2*s_3,      c_1*s_2*c_3 + s_1*s_3;
+    c_2*s_3,      s_2*s_1*s_3 + c_2*c_3,      c_1*s_2*s_3 - s_1*c_3;
+    -s_2,                     s_1*c_2,                    c_1*c_2
+    ];
 
-    density = stdatmo(height); 
-    [Fa, Ma] = AeroForcesAndMoments(aicraft_state, aircraft_surfaces, wind_intertial, density, aircraft_parameters); 
-    
-    %pos_dot ----------------------
+% kinematics angle rotation matrix
+angle_matrix = [
+    1,         s_1*tan_2,     c_1*tan_2;
+    0,            c_1,                  -s_1;
+    0,         s_1*sec_2,        c_1*sec_2
+];
 
-    c3 = cos(psi);  s3 = sin(psi);
-    c2 = cos(theta);  s2 = sin(theta);
-    c1 = cos(phi);  s1 = sin(phi);
-    
-    R1 = [c2*c3, s1*s2*c3 - c1*s3, c1*s2*c3 + s1*s3;
-        c2*s3, s1*s2*s3 + c1*c3, c1*s2*s3 - s1*c3;
-        -s2, s1*c2, c1*c2];
-    
-    pos_dot = R1 * [u; v; w]; 
-    
-    %angle_dot ----------------------
+%% EOM's and final statevector
+% Kinematics
+% Rate of change of inertial position
+pos_dot = euler321 * vel;   % matrix of position derivatives
 
-    R2 = [1, s1*tan(theta), c1*tan(theta);
-          0, c1, -s1;
-          0 s1*sec(theta), c1*sec(theta)]; 
-    
-    angle_dot = R2 * [p; q; r]; 
-    
-    % vel_dot ----------------------
+% Rate of change of euler angles
+angle_dot = angle_matrix*aVel;  % matrix of angle derivatives
 
-    u_dot = (r*v - q*w) + g*(-s2) + (Fa(1)/m);
-    v_dot = (p*w - r*u) + g*(c2*s1) + (Fa(2)/m); 
-    w_dot = (q*u - p*v) + g*(c2*c1) + (Fa(3)/m);
-    
-    vel_dot = [u_dot; v_dot; w_dot]; 
-    
+% Dynamics
 
-    %omega_dot ----------------------
+%Inertial Velocity derivatives - body frame
+vel_dot(1,1) = (aVel(3)*vel(2) - aVel(2)*vel(3)) + (g*-s_2) + (1/m) *a_f(1);
+vel_dot(2,1) = (aVel(1)*vel(3) - aVel(3)*vel(1)) + (g*c_2*s_1) + (1/m)*a_f(2);
+vel_dot(3,1) = (aVel(2)*vel(1) - aVel(1)*vel(2)) + (g*c_2*c_1) + (1/m)*a_f(3);
 
-    Ix = aircraft_parameters.Ix; Iy = aircraft_parameters.Iy; Iz = aircraft_parameters.Iz; 
-    Ixz = aircraft_parameters.Ixz; 
-    
-    gamma = Ix*Iz - (Ixz^2); 
-    gamma1 = Ixz*(Ix - Iy + Iz) / gamma; gamma2 = (Iz*(Iz - Iy) + Ixz^2) / gamma; 
-    gamma3 = Iz / gamma; gamma4 = Ixz / gamma; 
-    gamma5 = (Iz - Ix) / Iy; gamma6 = (Ixz / Iy); 
-    gamma7 = (Ix*(Ix - Iy) + Ixz^2)/gamma; gamma8 = Ix/gamma; 
-    
-    L = Ma(1); M = Ma(2); N = Ma(3); 
-    
-    p_dot = (gamma1*p*q - gamma2*q*r) + (gamma3*L + gamma4*N); 
-    q_dot = (gamma5*p*r - (gamma6*(p^2 - r^2))) + (M/Iy); 
-    r_dot = (gamma7*p*q - gamma1*q*r) + (gamma4*L + gamma8*N); 
-    
-    omega_dot = [p_dot; q_dot; r_dot]; 
-    
-    %final state vec
-    x_dot = [pos_dot; angle_dot; vel_dot; omega_dot]; 
+%Angular acceleration rates of each euler angle
+omega_dot(1,1)= 
+omega_dot(2,1)= 
+omega_dot(3,1)= 
+
+% Assemble the state derivative vector
+var_dot = [pos_dot; angle_dot; vel_dot; omega_dot];
+
+ end
+
+
 
 end
-
