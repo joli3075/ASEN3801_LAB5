@@ -1,0 +1,25 @@
+function xdot = AircraftEOMDoublet(time, aircraft_state, aircraft_surfaces, doublet_size, doublet_time, wind_inertial, aircraft_parameters)
+%define varibles
+delta_etrim = aircraft_surfaces(4,1); %change this
+doublet_size = 15 * pi/180; %radians
+doublet_time = 0.25; %seconds
+
+%determine d_e
+if time>0 & time<=doublet_time
+    d_e=d_etrim+doublet_size;
+elseif time>doublet_time & time<=2*doublet_time
+    d_e = d_etrim-doublet_size;
+else
+   d_e = d_etrim;
+end
+
+%determine initial state and control inputs (from 2.2)
+x0 = [0 0 -1800; 0 0.02780 0; 20.99 0 0.5837; 0 0 0];
+u0 = [0.1079 0 0 0.3182];
+
+%ode45 from task 2
+
+
+%plots
+
+end
