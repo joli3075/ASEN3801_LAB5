@@ -1,0 +1,215 @@
+
+% define constants and given parameters in question statement.
+Cyb = aircraft_parameters.CYbeta;
+Clb = aircraft_parameters.Clbeta;
+Cnb = aircraft_parameters.Cnbeta;
+
+Cyp = aircraft_parametes.CYp;
+Clp = aircraft_parameters.Clp;
+Cnp = aircraft_parameters.Cnp;
+
+Cyr = aircraft_parameters.Cyr;
+Clr = aircraft_parameters.Clr;
+Cnr = aircraft_parameters.Cnr;
+
+
+b = aircraft_parametes.b;
+S = aircraft_parameters.S;
+W = aircraft_parameters.m * aircraft_parameters.g;
+Ix = aircraft_parameters.Ix;
+Iz = aircraft_parameters.Iz;
+Ixz = aircraft_parameters.Ixz;
+% h = 3000; % given passed in 
+% u0 = 275; passed in 
+% theta0 = deg2rad(-3);  % deg to rad passed in 
+g = 9.81;
+
+
+% define initial known constants and base variables
+rho = stdatmo(h);
+q = 0.5 * rho * (u0^2);
+m = W/g;
+
+%% 1.a
+% Determine stability Derivates Y L N
+
+% Stability Derivatives Y
+Yb = 0.5 * rho * u0 *S * Cyb;
+Yp = 0.25 * rho * u0 * b * S * Cyp;
+Yr = 0.25 * rho * u0 * b * S * Cyr;
+
+% Stability Derivatives L
+Lb = 0.5 * rho * u0 * b * S * Clb;
+Lp = 0.25 * rho * u0 * (b^2) * S * Clp;
+Lr = 0.25 * rho * u0 * (b^2) * S * Clr;
+
+% Stability Derivatives N
+Nb = 0.5 * rho * u0 * b * S * Cnb;
+Np = 0.25 * rho * u0 * (b^2) * S * Cnp;
+Nr = 0.25 * rho * u0 * (b^2) * S * Cnr;
+
+% Define the stability derivatives vector
+Y = [Yb, Yp, Yr];
+L = [Lb, Lp, Lr];
+N = [Nb, Np, Nr];
+
+disp("Y vector [Yb, Yp, Yr]:");
+disp(Y);
+disp("L vector [Lb, Lp, Lr]:");
+disp(L);
+disp("N vector [Nb, Np, Nr]:");
+disp(N);
+
+
+%% 1.b
+% Calculate the Alat matrix
+
+
+% define gamma
+gamma = Ix * Iz - Ixz^2;
+% gamma_1 = (Ixz * (Ix - Iy + Iz)) / gamma;
+% gamma_2 = (Iz * (Iz - Iy) + Ixz^2) / gamma;
+gamma_3 = Iz / gamma;
+gamma_4 = Ixz / gamma;
+% gamma_5 = (gamma - Ix) / Iy;
+% gamma_6 = Ixz / Iy;
+% gamma_7 = (Ix * (Ix - Iy) + Ixz^2) / gamma;
+gamma_8 = Ix / gamma;
+
+A_lat = [ ...
+    Yb/m,                       Yp/m,                        (Yr/m) - u0,                  g*cos(theta0);
+    gamma_3*Lb + gamma_4*Nb,    gamma_3*Lp + gamma_4*Np,     gamma_3*Lr + gamma_4*Nr,      0;
+    gamma_4*Lb + gamma_8*Nb,    gamma_4*Lp + gamma_8*Np,     gamma_4*Lr + gamma_8*Nr,      0;
+    0,                          1,                           tan(theta0),                  0 ...
+    ];
+
+disp("Alat Matrix:")
+disp(A_lat);
+
+
+%% 1.c
+% Calculate the eigenvalues and eigenvectors of the Alat matrix
+[eigenvectors, eigenvalues] = eig(A_lat);
+
+eigenvalues = diag(eigenvalues);
+% Display the eigenvalues
+disp("Eigenvalues of the Alat Matrix:");
+disp(eigenvalues);
+
+% Display the eigenvectors
+disp("Eigenvectors of the Alat Matrix:");
+disp(eigenvectors);
+
+% mode classification
+disp("Eigenvalues 1,2 corrosponding to mode 1 are stable dutch roll modes, characterised by the complex conjugate and negative real component");
+disp("Eigenvalues 1,2: ");
+disp(eigenvalues(1:2));
+
+disp("Eigenvalue 3 corrosponding to mode 2 is a stable roll mode, characterized by the lack of complex conjugate and large negative real component");
+disp("Eigenvalue 3: ");
+disp(eigenvalues(3));
+
+disp("Eigenvalue 4 corrosponding to mode 3 is a stable spiral mode, characterized by the lack of complex conjugate and small negative real component");
+disp("Eigenvalue 4: ");
+disp(eigenvalues(4));
+
+
+%% 1.d Routh Stability
+
+poly_coeffs = poly(A_lat);
+
+disp("Characteristic polynomial coefficients:");
+disp(poly_coeffs);
+
+n = length(poly_coeffs)-1;
+m = ceil((n+1)/2);  % Corrected the parentheses for proper calculation
+rows = n+1;
+col = m;
+
+Routh = zeros(rows, col);
+
+Routh(1, :) = poly_coeffs(1:2:end);
+Routh(2, 1:length(poly_coeffs(2:2:end))) = poly_coeffs(2:2:end); % Adjusted assignment to handle different lengths
+Routh(2, length(poly_coeffs(2:2:end))+1:end) = 0; % Fill the remaining elements with zeros
+
+for i = 3:rows
+    for j = 1:col-1
+        firstrow = Routh(i-2, 1);
+        secondrow = Routh(i-2, j+1);
+        thirdrow = Routh(i-1, 1);
+        fourthrow = Routh(i-1, j+1);
+
+        Routh(i, j) = (thirdrow*secondrow - firstrow*fourthrow) / thirdrow;
+    end
+end
+
+disp("Routh Matrix for Stability Calculation");
+disp(Routh);
+
+if all(Routh(:,1) > 0) == 1
+    disp("Routh stability criterion comes back stable.");
+else
+    disp("Routh stability criterion comes back unstable.");
+end
+
+
+%% 1.e Natural Frequency and Time Constant Calculation
+
+% Calculate natural frequencies (omega) from eigenvalues
+natural_frequencies = sqrt(real(eigenvalues).^2 + imag(eigenvalues).^2);
+
+% Calculate time constants (tau) for each mode
+time_constants = 1 ./ abs(real(eigenvalues));
+
+disp("Natural Frequencies (rad/s):");
+disp(natural_frequencies);
+
+disp("Time Constants (s):");
+disp(time_constants);
+
+% testing each stability derivative with 10% incremental increase on A_lat.
+%% [todo: redo this function]
+%%
+% Define the dimensional derivatives to be modified
+dimensional_derivatives = {'Yb', 'Yp', 'Yr', 'Lb', 'Lp', 'Lr', 'Nb', 'Np', 'Nr'};
+original_values = [Yb, Yp, Yr, Lb, Lp, Lr, Nb, Np, Nr];
+
+% Initialize arrays to store new natural frequencies and time constants
+new_natural_frequencies = zeros(length(dimensional_derivatives), 1);
+new_time_constants = zeros(length(dimensional_derivatives), 1);
+
+for i = 1:length(dimensional_derivatives)
+    % Increase the selected derivative by 10%
+    modified_values = original_values;
+    modified_values(i) = modified_values(i) * 1.1;
+
+    % Recalculate the Alat matrix with modified stability derivatives
+    A_lat_modified = [ ...
+        modified_values(1)/m,                       modified_values(2)/m,                        (modified_values(3)/m) - u0,                  g*cos(theta0);
+        gamma_3*modified_values(4) + gamma_4*modified_values(7),    gamma_3*modified_values(5) + gamma_4*modified_values(8),     gamma_3*modified_values(6) + gamma_4*modified_values(9),      0;
+        gamma_4*modified_values(4) + gamma_8*modified_values(7),    gamma_4*modified_values(5) + gamma_8*modified_values(8),     gamma_4*modified_values(6) + gamma_8*modified_values(9),      0;
+        0,                          1,                           tan(theta0),                  0 ...
+        ];
+
+    % Calculate eigenvalues for the modified Alat matrix
+    [eigenvectors_modified, eigenvalues_modified] = eig(A_lat_modified);
+    eigenvalues_modified = diag(eigenvalues_modified);
+
+    % Calculate new natural frequencies and time constants
+    new_natural_frequencies(i) = sqrt(real(eigenvalues_modified(1)).^2 + imag(eigenvalues_modified(1)).^2);
+    new_time_constants(i) = 1 ./ abs(real(eigenvalues_modified(1)));
+
+    % Display results for the current modification
+    disp(['Natural Frequencies (rad/s) after 10% increase in ', dimensional_derivatives{i}, ':']);
+    disp(new_natural_frequencies(i));
+
+    disp(['Time Constants (s) after 10% increase in ', dimensional_derivatives{i}, ':']);
+    disp(new_time_constants(i));
+end
+
+disp(new_natural_frequencies);
+disp(new_time_constants);
+
+
+
+disp("The only changes that influence the time constant and frequency is in the first dimensional derivative, where the natural frequency increases to " + num2str(new_natural_frequencies(1) + " and the time constant lowers to " + num2str(new_time_constants(1))));
